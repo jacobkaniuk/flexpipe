@@ -1,4 +1,4 @@
-class BaseAsset(object, parent=None):
+class BaseAsset(object):
     def __init__(self, name, uid, upid, publish_time, project, shot, asset, version):
         self.name = name
         self.uid = uid

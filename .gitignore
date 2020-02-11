@@ -23,6 +23,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 
+# ide
+.idea/
+.vscode/
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
