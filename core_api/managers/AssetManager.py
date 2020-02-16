@@ -5,6 +5,12 @@ from pymongo import command_cursor
 from pymongo import cursor
 
 
+from core_api.assets import BaseAsset
+from core_api.assets import SceneAsset
+from core_api.assets import AnimAsset
+
+
+
 class AssetManager(object, parent=None):
     def __init__(self):
         super(AssetManager, self).__init__(self)

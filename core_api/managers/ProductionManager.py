@@ -1,14 +1,17 @@
 import os
 import sys
-from 
+from pymongo.database import Database
+from pymongo import errors as pymongoErrors
+from pymongo import MongoClient
+
 
 class ProductionManager(object):
     def __init__(self, config_file):
-        self.config_file = config_file
+        self.db_type = config_file
         self.database_connection = None
-        self.database_token = None
         self.database_url = None
         self.use_config_all_projects = False
+        self.connect_to_database('localhost')
 
     def parse_config(self):
         """
@@ -22,7 +25,19 @@ class ProductionManager(object):
         :param database_url: str
         :return:
         """
-        return
+        if self.db_type == 'mongodb':
+            try:
+                mongo_db_client = MongoClient(database_url, port=27017, serverSelectionTimeoutMS=5)
+                mongo_db_client.server_info()
+                self.database_connection = mongo_db_client
+                return mongo_db_client
+
+
+            except pymongoErrors.ServerSelectionTimeoutError as error:
+                print "Could not not connect to database: {} at {}".format(
+                    self.db_type,
+                    database_url
+                ), error
 
     def create_project(self, project_name):
         """
@@ -30,7 +45,24 @@ class ProductionManager(object):
         :param project_name: str name of project to be created
         :return: str database path to project
         """
-        return
+        assert isinstance(project_name, str), "Invalid type passed. Got: {} Expected: str".format(type(project_name))
+
+        if self.database_connection is None:
+            raise RuntimeError("Could not add any projects. No database connection established.")
+
+        if project_name in self.database_connection.list_database_names():
+            print "Project creation failed. Project already exists in database server at: {}".format(
+                self.database_connection
+            )
+
+        # TODO create default tables for new project, how are we going to load them in (external config ? )
+        else:
+            init_collections = ['shots', 'assets', 'users']
+            for collection in init_collections:
+                Database(self.database_connection, project_name).create_collection(collection)
+
+        # return database
+        return self.database_connection[project_name]
 
     def update_project(self, project_name, project_settings):
         """
