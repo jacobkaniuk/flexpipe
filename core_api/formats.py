@@ -126,14 +126,3 @@ class Bmp(ImageFormat):
         self._extension = '.bmp'
         self.bit_depth = 8
         self.data_space = int
-
-
-j = Jpeg()
-p = Png()
-t = Targa()
-d = Dng()
-ti = Tiff()
-b = Bmp()
-
-for i in [j,p,t,d,ti,b]:
-    print i
