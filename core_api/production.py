@@ -2,17 +2,34 @@ import os
 import sys
 
 
+def remove_namespaces(item):
+    if not isinstance(item, dict):
+        raise TypeError("Could not remove namespaces from item(s). Expecting type: {} Got: {}".format(
+            type(item),
+            dict
+        ))
+    no_namespace_dict = dict()
+    for key, value in item.items():
+        key = str(key).rsplit('__')[-1]
+        no_namespace_dict[key] = value
+    return no_namespace_dict
+
+
 class Project(object):
-    def __init__(self):
-        self.__name = str()
-        self.__data_path = str()
+    def __init__(self, name, data_path, max_users=50):
+        self.__name = name
+        self.__data_path = data_path  # root prefix for where project will be stored
+        self.__max_active_users = max_users
+        self.__users = list()
         self.__resolution_x = int()
         self.__resolution_y = int()
         self.__default_dccs = dict()
-        self.__max_active_users = int()
-        self.hierarchy = dict()
 
     def __repr__(self):
+        return self.__name
+
+    @property
+    def name(self):
         return self.__name
 
     @property
@@ -65,30 +82,54 @@ class Project(object):
 
 
 class Shot(object):
-    def __init__(self, project, name, start_frame, end_frame):
+    def __init__(self, project, name, start_frame=1, end_frame=50, users=None, fps=24):
         self.__project = project
         self.__name = name
         self.__start_frame = start_frame
         self.__end_frame = end_frame
-        self.__frame_range = self.__end_frame - self.__start_frame
-        self.__num_published_assets = int()
+        self.__users = users
+        self.__frame_count = self.__end_frame - self.__start_frame
         self.__lut = str()
+        self.__fps = fps
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def duration(self):
+        return "Duration: {sec} sec {frame} frames. Fps: {fps}".format(
+            sec=int(self.frame_count / self.__fps),  # cast as int in case of python3+ later
+            frame=self.frame_count % self.__fps,
+            fps=self.__fps
+        )
+
+    def __update_frame_count(self):
+        self.__frame_count = self.__end_frame - self.__start_frame
 
     @property
     def frame_count(self):
-        return self.__frame_range
+        return self.__frame_count
 
     @frame_count.setter
-    def frame_count(self, range):
+    def frame_count(self, count):
         """
         set the frame "range" for the shot. when value changed, start
         frame stays the same and end frame changes to match new offset
-        :param count: list/tuple start and end frame of the shot
+        :param count: int duration of shot. will be appended from start frame
         :return:
         """
-        self.__start_frame = int(range[0])
-        self.__end_frame = int(range[1])
-        self.__frame_range = self.__end_frame - self.__start_frame
+        self.__end_frame = self.__start_frame + count
+        self.__update_frame_count()
+
+    def set_frame_range(self, start, end):
+        self.__start_frame = start
+        self.__end_frame = end
+        self.__update_frame_count()
+
+    @property
+    def frame_range(self):
+        return self.__start_frame, self.__end_frame
 
     def __repr__(self):
         return self.__name
