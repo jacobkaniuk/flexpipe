@@ -24,6 +24,7 @@ class Project(object):
         self.__resolution_x = int()
         self.__resolution_y = int()
         self.__default_dccs = dict()
+        self.__shot_list = list()
 
     def __repr__(self):
         return self.__name
@@ -55,11 +56,11 @@ class Project(object):
         try:
             self.__resolution_x = int(res[0])
         except TypeError:
-            print"Please pass an appropriate type (int)"
+            print "Please pass an appropriate type (int)"
         try:
             self.__resolution_y = int(res[1])
         except TypeError:
-            print"Please pass an appropriate type (int)"
+            print "Please pass an appropriate type (int)"
 
     @property
     def max_active_users(self):
@@ -77,8 +78,8 @@ class Project(object):
         """
         self.__max_active_users = max_users
 
-    def get_number_of_shots(self):
-        return len()
+    def number_of_shots(self):
+        return len(self.__shot_list)
 
 
 class Shot(object):
