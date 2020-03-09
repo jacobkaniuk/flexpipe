@@ -5,9 +5,8 @@ import sys
 def remove_namespaces(item):
     if not isinstance(item, dict):
         raise TypeError("Could not remove namespaces from item(s). Expecting type: {} Got: {}".format(
-            type(item),
-            dict
-        ))
+            dict, type(item)))
+
     no_namespace_dict = dict()
     for key, value in item.items():
         key = str(key).rsplit('__')[-1]

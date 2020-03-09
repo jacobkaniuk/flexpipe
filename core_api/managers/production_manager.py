@@ -9,6 +9,7 @@ from logging import Logger
 
 PUBLISHED_ASSETS = 'published_assets'
 
+
 class ConfigurationManager(object):
     #  TODO find library/module for password encryption and decryption
     def __init__(self):

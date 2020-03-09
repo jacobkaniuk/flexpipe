@@ -1,7 +1,7 @@
 from core_api.assets.base_asset import BaseAsset
 
 
-class SceneAsset(BaseAsset, parent=BaseAsset):
+class SceneAsset(BaseAsset):
     def __init__(self, dcc_type=None, referenced_files=None, **kwargs):
         super(SceneAsset, self).__init__(**kwargs)
         self.__dcc_type = dcc_type

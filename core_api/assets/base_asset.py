@@ -1,14 +1,14 @@
 class BaseAsset(object):
-    def __init__(self, name=None, uid=None, upid=None, publish_time=None,
-                 project=None, shot=None, version=None):
+    def __init__(self, name=None, uid=None, asset_type=None, upid=None,
+                 publish_time=None, project=None, shot=None, version=None):
         self.__name = name
         self.__uid = uid
+        self.__asset_type = asset_type
         self.__user_publish_id = upid
         self.__asset_publish_time = publish_time
         self.__project = project
         self.__shot = shot
         self.__version = version
-        self.__asset_type = type(self)
 
         # paths relative to OS
         self.__linux_path = str()

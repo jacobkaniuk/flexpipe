@@ -1,5 +1,5 @@
 from base_asset import BaseAsset
-from colour.io import image
+# from colour.io import image
 from core_api.formats import ImageFormat
 
 
