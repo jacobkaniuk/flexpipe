@@ -2,6 +2,7 @@ from collections import OrderedDict
 import logging
 from logging import Logger
 import warnings
+import os
 
 from pymongo import MongoClient
 from pymongo import mongo_client
@@ -21,10 +22,11 @@ from core_api.assets.texture_asset import TextureAsset
 
 logging.basicConfig()
 
+database_prefix_address = r'flex:\\'  # TODO load this in from a config file somehow
 
 # use these keys to instantiate an asset object based on their unique member names.
 # When extending, make sure inheritance order is set left->right : child->parent
-ASSET_TYPES = OrderedDict({
+ASSET_CLASS_ATTRS = OrderedDict({
     'parent_scene': LayoutAsset,
     'uv_method': TextureAsset,
     'colorspace': ImageAsset,
@@ -32,16 +34,29 @@ ASSET_TYPES = OrderedDict({
     'windows_path': BaseAsset,
 })
 
+# use these to determine which asset we need to instantiate based on their suffix
+ASSET_TYPE_SUFFIXES = {
+    # 'model': ModelAsset,
+    'tex': TextureAsset,
+    'img': ImageAsset,
+    'scn': SceneAsset,
+    # 'rig': RigAsset,
+    # 'fx': FXAssets,
+    # 'lgt': LightingAsset,
+    # 'anim': AnimAsset,
+    'lay': LayoutAsset
+}
+
 PUBLISHED_ASSETS = 'published_assets'
 
 
-class AssetManager(object):
+class AssetReader(object):
     def __init__(self):
-        super(AssetManager, self).__init__()
+        super(AssetReader, self).__init__()
         self.db_client = MongoClient('localhost')  # TODO pass db server we want to connect to
 
     def get_published_asset(self, uid=None, project=None, shot=None, asset_type=None,
-                            asset_name=None, version=None, prev_versions=None):
+                            asset_name=None, version=None, prev_versions=None, verbose=True):
         """
         Get an asset by uid, or by providing the proj, shot and asset type,
         or by asset name and version number
@@ -57,9 +72,11 @@ class AssetManager(object):
         if uid:
             query = ({'_id': ObjectId(uid)})
             for database in self.db_client.list_database_names():
-                print "Searching in project: ", database
-                if self.db_client[database][PUBLISHED_ASSETS].find_one(query):
-                    return create_asset_representation(self.db_client[database][PUBLISHED_ASSETS].find_one(query))
+                if database not in ['admin', 'config', 'users', 'local']:
+                    if verbose:
+                        print "Searching in project: ", database
+                    if self.db_client[database][PUBLISHED_ASSETS].find_one(query):
+                        return create_asset_representation(self.db_client[database][PUBLISHED_ASSETS].find_one(query))
             print "Could not find asset with specified id: {}".format(uid)
             return False
 
@@ -68,6 +85,9 @@ class AssetManager(object):
             raise RuntimeError("Could not generate query to search assets with. "
                                "Please make sure you provide the following: {}, {}, {}, {}".format(
                                 'project', 'shot', 'asset_type', 'asset_name'))
+
+        if issubclass(asset_type, BaseAsset):
+            asset_type = asset_type.__name__
 
         query = ({'name': asset_name,
                   'project': project,
@@ -78,15 +98,18 @@ class AssetManager(object):
         results = self.db_client[project][PUBLISHED_ASSETS].find(query)
         result_count = self.db_client[project][PUBLISHED_ASSETS].count_documents(query)
 
+        if verbose:
+            if result_count < 1:
+                print "Could not find any assets with the given fields: \n\n\t-{}\n\t-{}\n\t-{}\n\t-{}\n".format(
+                    project, shot, asset_name, asset_type
+                )
+                return None
+
         # return a specific version from our arg
         if version:
             if not isinstance(version, int):
                 raise TypeError("Could not make result version query. Wrong type provided. Expected: {}. Got: {}".format
                                 (int, type(version)))
-
-            if result_count <= 0:
-                print "Didn't find any asset with provided attributes."
-                return False
 
             if version > 0:
                 # get the version based on the exact number that we pass in ie(version=3 will return version 3 if exist)
@@ -99,7 +122,8 @@ class AssetManager(object):
                 versions = sorted(results, key=lambda x: int(x['version']))[version:]
                 return create_asset_representation(versions[version:][0])  # pass result as dict not list
 
-            print "Did not find any asset with specified field in results: Version {}".format(version)
+            if verbose:
+                print "Did not find any asset with specified fields in results: Version {}".format(version)
             return False
 
         # return a list of versions based on our arg
@@ -145,7 +169,8 @@ class AssetManager(object):
                 raise TypeError(type_error_msg)
 
         # return the latest version by default
-        print 'Returning latest version of asset'
+        if verbose:
+            print 'Returning latest version of asset'
         return create_asset_representation(max(results, key=lambda x: x['version']))
 
     def get_assets_by_type(self, asset_type, project=None, shot=None,):
@@ -157,7 +182,7 @@ class AssetManager(object):
         :return: list asset objects
         """
         if not isinstance(asset_type, str):
-            if asset_type not in ASSET_TYPES.values():
+            if asset_type not in ASSET_CLASS_ATTRS.values():
                 raise TypeError("Wrong type passed as asset type. Expected {} or {}, got {}".format(
                     str, BaseAsset, type(asset_type)
                 ))
@@ -232,6 +257,69 @@ class AssetManager(object):
 
         return representations
 
+    def get_asset_by_database_path(self, database_path):
+        """
+        Return the asset by using the database relative path (ie. project/cre_snake_a/mdl/2
+        :param database_path:
+        :return:
+        """
+
+        # TODO make sure to add check for suffix validating at end, value error thrown now
+
+        argument_error_message = "Please provide required arguments: {}{}/{}/{}\n{}\nor\n{}".format(
+            database_prefix_address, 'project', 'shot', 'asset_name', 'version (optional),'
+            'eg: flex://test_project/ENV_SHOPPING_CENTRE/PROP_SHOPPING_CART_A/model/4',
+            ' as list: ["flex://", "test_project", "ENV_SHOPPING_CENTRE", "PROP_SHOPPING_CART_A", "model", "4"]')
+
+        project     = None
+        shot        = None
+        asset_name  = None
+        version     = None
+
+        if isinstance(database_path, str):
+            if not database_path.startswith(database_prefix_address):
+                raise RuntimeWarning("Please make sure you add correct address at start of provided. \nExpected: {} \n"
+                                     "Got: {}\n".format(database_prefix_address, database_path[:len(database_prefix_address)]))
+
+            database_path = database_path.rsplit(database_prefix_address)[-1]
+            database_path = database_path.rsplit(os.path.sep)
+
+        elif isinstance(database_path, list):
+            for item in database_path:
+                if not isinstance(item, str):
+                    raise TypeError("Please provided list of: {} to create query.".format(str))
+
+        if not len(database_path) == 4:
+            if not len(database_path) == 3:
+                raise RuntimeError(argument_error_message)
+
+        if len(database_path) == 3:
+            project     = database_path[0]
+            shot        = database_path[1]
+            asset_name  = database_path[2]
+
+        elif len(database_path) == 4:
+            project     = database_path[0]
+            shot        = database_path[1]
+            asset_name  = database_path[2]
+            version     = database_path[3]
+
+        if not all([project, shot, asset_name]) != '' or None:
+            raise RuntimeError("One or more invalid argument values. {}".format(argument_error_message))
+
+        asset_suffix = asset_name.rsplit('_', 1)[-1]
+        split_asset_name = asset_name.rsplit('_', 1)[0]
+        asset_type = ASSET_TYPE_SUFFIXES[asset_suffix]
+        version = int(version) if version else None
+
+        return self.get_published_asset(project=project, shot=shot, asset_type=asset_type,
+                                        asset_name=split_asset_name, version=version)
+
+
+class AssetWriter(object):
+    def __init__(self):
+        super(AssetWriter, self).__init__()
+
 
 def create_asset_representation(asset_entry):
     from inspect import getargspec
@@ -248,6 +336,7 @@ def create_asset_representation(asset_entry):
         name=asset_entry['name'],
         uid=asset_entry['_id'],
         upid=asset_entry['created_by'],
+        asset_type=asset_entry['asset_type'],
         publish_time=asset_entry['publish_time'],
         project=asset_entry['project'],
         shot=asset_entry['shot'],
@@ -257,8 +346,9 @@ def create_asset_representation(asset_entry):
     # lets figure out which class we should instance if we a specific field in the asset entry
     asset_class = None
     for key in asset_entry:
-        if key in ASSET_TYPES:
-            asset_class = ASSET_TYPES.get(key)
+        if key in ASSET_CLASS_ATTRS:
+            asset_class = ASSET_CLASS_ATTRS.get(key)
+            break
 
     if asset_class is None:
         raise KeyError("Could not find asset type to instance from support classes. Please make sure "
@@ -275,13 +365,4 @@ def create_asset_representation(asset_entry):
 
     # pass in the class args to the specific asset type class, kwargs go to BaseAsset class
     return asset_class(**instance_kwargs)
-
-
-def get_asset_by_database_path(database_path):
-    """
-    Return the asset by using the database relative path
-    :param database_path:
-    :return:
-    """
-
 
