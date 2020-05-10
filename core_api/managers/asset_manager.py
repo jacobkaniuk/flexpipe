@@ -18,6 +18,7 @@ from core_api.assets.scene_asset import SceneAsset
 from core_api.assets.layout_asset import LayoutAsset
 from core_api.assets.image_asset import ImageAsset
 from core_api.assets.texture_asset import TextureAsset
+from core_api.conf import PUBLISHED_ASSETS, ASSET_STATUS
 
 
 logging.basicConfig()
@@ -46,8 +47,6 @@ ASSET_TYPE_SUFFIXES = {
     # 'anim': AnimAsset,
     'lay': LayoutAsset
 }
-
-PUBLISHED_ASSETS = 'published_assets'
 
 
 class AssetReader(object):
@@ -256,6 +255,71 @@ class AssetReader(object):
             representations.append(create_asset_representation(item))
 
         return representations
+
+    def get_assets(self, asset_type=None, project=None, shot=None, max_count=None,
+                   dept=None, from_date=None, to_date=None, location=None, status=None, representations=False):
+
+        # TODO see if we can refactor this method and get_published_assets above to be one general purpose method
+        #  for all asset search/retrieval purposes
+
+        """
+        General purpose method to get all published assets from a project based on given "filters" (params)
+        :param asset_type: str/BaseAsset type of assets we want to retrieve
+        :param project: str name of project to search in
+        :param shot: str name of shot we want to search in
+        :param max_count: int limit our results length
+        :param dept: str search by department/stage/type
+        :param from_date: datetime/str starting date for date range search
+        :param to_date: datetime/str ending date for date range search
+        :param location: str search by location of published user
+        :param status: int search by status of the asset
+        :param representations: bool return results as flexpipe asset objects or as dicts from database results
+        :return: list all found assets as dicts. can then be instantiated by feeding into get published asset method
+        """
+        if asset_type:
+            if issubclass(type(asset_type), BaseAsset):
+                asset_type = asset_type.__name__
+
+        query = dict()
+        for key, value in {'asset_type': asset_type, 'project': project, 'shot': shot,
+                           'dept': dept, 'location': location, 'status': status}.items():
+            if value:
+                if not isinstance(value, str):
+                    raise TypeError("Please provide a valid type to search db. "
+                                    "Expected: {} Got: {}".format(str, type(value)))
+                query.update({key: value})
+
+        if from_date and to_date:
+            # if we're filtering by date, erase query and set it just to our date range
+            query = {'publish_time': {'$gte': from_date, '$lt': to_date}}
+
+        if max_count:
+            # use this to limit how many assets we're going to get back
+            if not isinstance(max_count, int):
+                if not isinstance(max_count, long):
+                    if not max_count >= 1:
+                        raise TypeError("Please provide a valid numeric value for result length contraint.")
+
+            # return the assets as python object representations
+            if representations:
+                results = [i for i in cursor.Cursor(PUBLISHED_ASSETS, filter=query, limit=max_count)]
+                return [create_asset_representation(i) for i in results]
+
+            # return just the db cursor results
+            return [i for i in cursor.Cursor(PUBLISHED_ASSETS, filter=query, limit=max_count)]
+
+        # no limit, return all found items
+        if representations:
+            results = [i for i in self.db_client[project][PUBLISHED_ASSETS].find(query)]
+            return [create_asset_representation(i) for i in results]
+
+        return [i for i in self.db_client[project][PUBLISHED_ASSETS].find(query)]
+
+    def get_assets_by_project(self, asset_type, project, max_count=None):
+        return self.get_assets(asset_type, project, max_count)
+
+    def get_assets_by_shot(self, asset_type, project, shot, max_count=None):
+        return self.get_assets(asset_type, project, shot, max_count)
 
     def get_asset_by_database_path(self, database_path):
         """

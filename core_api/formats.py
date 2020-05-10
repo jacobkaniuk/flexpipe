@@ -1,4 +1,4 @@
-from imageio import formats
+# from imageio import formats
 
 
 class ImageFormat(object):

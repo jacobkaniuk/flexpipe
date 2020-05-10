@@ -121,3 +121,17 @@ class ProjectManipulationTest(unittest.TestCase):
         id = ObjectId('5e4e93bbc7a6ce4178e18abb')
         result = prod_manager.db_client['test_thhis_new_project']['assets'].find_one({'_id': id})
         print result
+
+    def test_get_project_assets(self):
+        proj = production.Project('test_this_new_project')
+        proj.init_asset_manager()
+        for i in proj.get_project_assets('ImageAsset'):
+            print i['asset_type'], i
+        for i in proj.get_project_assets('BaseAsset'):
+            print i['asset_type'], i
+
+    def test_get_shot_assets(self):
+        shot = production.Shot('test_this_new_project', 'PLAYGROUND_ASSETS')
+        shot.init_manager()
+        for i in shot.get_shot_assets(asset_type='ImageAsset'):
+            print i

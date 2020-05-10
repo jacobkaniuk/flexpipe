@@ -3,11 +3,10 @@ from pymongo import errors as pymongoErrors
 from pymongo.database import Database
 from bson.objectid import ObjectId
 from core_api import production
+from core_api.conf import PUBLISHED_ASSETS
 
 import logging
 from logging import Logger
-
-PUBLISHED_ASSETS = 'published_assets'
 
 
 class ConfigurationManager(object):
@@ -62,6 +61,12 @@ class ConfigurationManager(object):
 
 
 class ProductionManager(object):
+    @staticmethod
+    def verify_project_type(project, expected):
+        if not isinstance(project, expected):
+            raise TypeError("Invalid type passed. Got: {} ",
+                            "Expected: {}".format(type(project)), type(expected))
+
     def __init__(self, config_file):
         self.db_type = config_file
         self.db_client = None
@@ -118,12 +123,6 @@ class ProductionManager(object):
 
         else:
             return True
-
-    @staticmethod
-    def verify_project_type(project, expected):
-        if not isinstance(project, expected):
-            raise TypeError("Invalid type passed. Got: {} ",
-                            "Expected: {}".format(type(project)), type(expected))
 
     def add_custom_database_entry(self, parent, name, **kwargs):
         self.check_db_connection("add custom collection")
@@ -394,10 +393,12 @@ class ProductionManager(object):
             asset_id = ObjectId(asset_id)
             query = {'_id': asset_id}
             for project in self.db_client.list_database_names():
-                if self.db_client[project]['assets'].find_one(query):
-                    project_name = self.db_client[project]['assets'].find_one(asset_id)['project']
-                    shot         = self.db_client[project]['assets'].find_one(asset_id)['shot']
-                    asset_name   = self.db_client[project]['assets'].find_one(asset_id)['name']
+                result = self.db_client[project]['assets'].find_one(query)
+                if result:
+                    project_name = result['project']
+                    shot         = result['shot']
+                    asset_name   = result['name']
+
         else:
             asset_id = self.db_client[project_name]['assets'].find({'name': asset_name})[0]['_id']
 
