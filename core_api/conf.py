@@ -1,9 +1,38 @@
+import platform
+from collections import OrderedDict
+
+
+PLATFORM = platform.system()
 PUBLISHED_ASSETS = 'published_assets'
-ASSETS = 'assets'
+ASSET_BIN = 'assets'
 SETTINGS = 'settings'
 SHOTS = 'shots'
 DB_USERS = r"['users']"
 PROJECT_USERS = 'users'
+DATABASE_PREFIX_ADDRESS = r'flex:\\'  # default address will be Windows
+
+
+def get_database_prefix_address():
+    # set out db prefix path based on system platform
+    if PLATFORM == 'Linux':
+        return r'flex://'
+    elif PLATFORM == 'Windows':
+        return r'flex:\\'
+
+
+# use these to determine which asset we need to instantiate based on their suffix
+ASSET_TYPE_SUFFIXES = {
+    'mdl': 'ModelAsset',
+    'tex': 'TextureAsset',
+    'img': 'ImageAsset',
+    'scn': 'SceneAsset',
+    'rig': 'RigAsset',
+    'fx': 'FXAsset',
+    'lgt': 'LightingAsset',
+    'anim': 'AnimAsset',
+    'lay': 'LayoutAsset'
+}
+
 
 ASSET_STATUS = [
     0,      # ready to start/pick up
@@ -12,7 +41,8 @@ ASSET_STATUS = [
     3,      # needs fixes/changes
     4,      # intermediately approved
     5,      # approved
-    -1      # omit
+    -1,     # hold/don't start yet
+    -2      # omit
 ]
 
 DEPARTMENTS = {

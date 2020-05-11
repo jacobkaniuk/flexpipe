@@ -1,12 +1,12 @@
+import logging
+from logging import Logger
+
 from pymongo import MongoClient
 from pymongo import errors as pymongoErrors
 from pymongo.database import Database
 from bson.objectid import ObjectId
 from core_api import production
-from core_api.conf import PUBLISHED_ASSETS
-
-import logging
-from logging import Logger
+from core_api.conf import PUBLISHED_ASSETS, ASSET_BIN, SETTINGS, SHOTS, PROJECT_USERS
 
 
 class ConfigurationManager(object):
@@ -166,12 +166,12 @@ class ProductionManager(object):
 
         else:
             # TODO create default tables for new project, how are we going to load them in (external config ? )
-            init_collections = ['settings', 'shots', 'assets', 'users']
+            init_collections = [SETTINGS, SHOTS, ASSET_BIN, PROJECT_USERS, PUBLISHED_ASSETS]
             for collection in init_collections:
                 Database(self.db_client, project.name).create_collection(collection)
 
             settings = production.remove_namespaces(project.__dict__)
-            self.db_client[project.name]['settings'].insert_one(settings)
+            self.db_client[project.name][SETTINGS].insert_one(settings)
 
         # return database
         return self.db_client[project.name]
@@ -189,7 +189,7 @@ class ProductionManager(object):
         updated_project = production.remove_namespaces(project.__dict__)
         query = {"name": project.name}
         new_value = {"$set": updated_project}
-        self.db_client[project.name]['settings'].update_one(query, new_value)
+        self.db_client[project.name][SETTINGS].update_one(query, new_value)
 
         return self.db_client[project.name]
 
@@ -203,8 +203,8 @@ class ProductionManager(object):
         self.check_project_exists(project_name)
         self.verify_project_type(project_name, str)
 
-        # project_dict = self.db_client[project_name]['settings'].find({'name': project_name})[0]
-        return self.db_client[project_name]['settings'].find({'name': project_name})[0]
+        # project_dict = self.db_client[project_name][SETTINGS].find({'name': project_name})[0]
+        return self.db_client[project_name][SETTINGS].find({'name': project_name})[0]
 
     def create_shot(self, project_name, shot, is_single_asset_shot=False, **kwargs):
         """
@@ -226,7 +226,7 @@ class ProductionManager(object):
         query = {'name': shot.name}
         value = {'$set': shot_dict}
 
-        self.db_client[project_name]['shots'].update_one(query, value, upsert=True)
+        self.db_client[project_name][SHOTS].update_one(query, value, upsert=True)
 
     def update_shot(self, project_name, shot, is_single_asset_shot=False, **kwargs):
         """
@@ -241,9 +241,9 @@ class ProductionManager(object):
             shot_dict[key] = value
         query = {'name': shot.name}
         value = {'$set': shot_dict}
-        self.db_client[project_name]['shots'].update_one(query, value)
+        self.db_client[project_name][SHOTS].update_one(query, value)
 
-        return self.db_client[project_name]['shots']
+        return self.db_client[project_name][SHOTS]
 
     def remove_shot(self, project_name=None, shot=None, shot_id=None, cleanup_dir=False):
         """
@@ -267,7 +267,7 @@ class ProductionManager(object):
 
                 # search the entire database server for our shot
                 for project in self.db_client.list_database_names():
-                    result = self.db_client[project]['shots'].find_one(query)
+                    result = self.db_client[project][SHOTS].find_one(query)
                     if result is not None:
                         project_name = result['project']
                         shot = result['shot']
@@ -281,19 +281,19 @@ class ProductionManager(object):
                                        "Required arguments not provided: {} or {}, {}".format(
                                         'shot_id', 'project', 'shot'))
 
-                shot_id = self.db_client[project_name]['shots'].find({'project': project_name,
+                shot_id = self.db_client[project_name][SHOTS].find({'project': project_name,
                                                                       'name': shot})[0]['_id']
                 shot_id = ObjectId(shot_id)
                 query = {'_id': shot_id}
 
             if cleanup_dir:
                 # remove all asset containers which are from this shot
-                self.db_client[project_name]['assets'].delete_many({'shot': shot})
+                self.db_client[project_name][ASSET_BIN].delete_many({'shot': shot})
                 # remove all published assets from this shot
                 self.db_client[project_name][PUBLISHED_ASSETS].delete_many({'shot': shot})
 
             if shot_id is not None:
-                return self.db_client[project_name]['shots'].delete_one({'_id': shot_id})
+                return self.db_client[project_name][SHOTS].delete_one({'_id': shot_id})
         except IndexError as i:
             print "Did not find shot: {} in project {}. Error: {}".format(shot, project_name, i)
 
@@ -312,7 +312,7 @@ class ProductionManager(object):
 
         query = {"name": project_name}
         new_value = {"$set": {"data_path": new_project_path}}
-        self.db_client[project_name]['settings'].update_one(query, new_value)
+        self.db_client[project_name][SETTINGS].update_one(query, new_value)
 
         return self.db_client[project_name]
 
@@ -337,12 +337,13 @@ class ProductionManager(object):
         """
         return
 
-    def create_asset(self, project, shot, asset_name, **kwargs):
+    def create_asset(self, project, shot, asset_name, status=1, **kwargs):
         """
         Creates an asset sub directory for a shot ie. PROP_TABLE_LARGE
         :param project: str project to make changes to
         :param shot: str name of shot asset will be added to
         :param asset_name str name of asset which will be created
+        :param status: int status of the asset (ie. in progress, ready for review, etc.)
         :param kwargs any additional attributes to be added to the asset
         :return: objectID newly created asset entry
         """
@@ -359,7 +360,8 @@ class ProductionManager(object):
             'created_by': None,
             'validators': [],
             'last_mofidied': None,
-            'last_user': None
+            'last_user': None,
+            'status': status
         }
 
         # extend our asset if we provide a dict
@@ -369,7 +371,7 @@ class ProductionManager(object):
             else:
                 raise ReferenceError("Found additional field in kwargs. Please use update_asset method instead.")
 
-        return self.db_client[project.name]['assets'].update({'name': asset_name}, {'$set': data}, upsert=True)
+        return self.db_client[project.name][ASSET_BIN].update({'name': asset_name}, {'$set': data}, upsert=True)
 
     def update_asset(self, project_name=None, shot=None, asset_name=None, asset_id=None, **kwargs):
         """
@@ -393,14 +395,14 @@ class ProductionManager(object):
             asset_id = ObjectId(asset_id)
             query = {'_id': asset_id}
             for project in self.db_client.list_database_names():
-                result = self.db_client[project]['assets'].find_one(query)
+                result = self.db_client[project][ASSET_BIN].find_one(query)
                 if result:
                     project_name = result['project']
                     shot         = result['shot']
                     asset_name   = result['name']
 
         else:
-            asset_id = self.db_client[project_name]['assets'].find({'name': asset_name})[0]['_id']
+            asset_id = self.db_client[project_name][ASSET_BIN].find({'name': asset_name})[0]['_id']
 
         query = {'_id': asset_id}
         data = {'project': project_name, 'shot': shot, 'name': asset_name}
@@ -408,7 +410,7 @@ class ProductionManager(object):
             data[key] = value
 
         if all(arg is not None for arg in [project_name, shot, asset_name]):
-            return self.db_client[project_name]['assets'].update_one(query, {'$set': data})
+            return self.db_client[project_name][ASSET_BIN].update_one(query, {'$set': data})
 
     def remove_asset(self, project_name=None, shot=None, asset_name=None, asset_id=None, cleanup_dir=False):
         """
@@ -431,15 +433,61 @@ class ProductionManager(object):
             query = {'_id': asset_id}
             #  TODO refactor to one method, return dict
             for project in self.db_client.list_database_names():
-                if self.db_client[project]['assets'].find_one(query):
-                    project_name = self.db_client[project]['assets'].find_one(asset_id)['project']
+                if self.db_client[project][ASSET_BIN].find_one(query):
+                    project_name = self.db_client[project][ASSET_BIN].find_one(asset_id)['project']
                 else:
                     asset_id = None
 
         else:
-            asset_id = self.db_client[project_name]['assets'].find({'project': project_name,
+            asset_id = self.db_client[project_name][ASSET_BIN].find({'project': project_name,
                                                                     'shot': shot,
                                                                     'name': asset_name})[0]['_id']
 
         if asset_id is not None:
-            return self.db_client[project_name]['assets'].delete_one({'_id': asset_id})
+            return self.db_client[project_name][ASSET_BIN].delete_one({'_id': asset_id})
+
+    def get_assets_by(self, project, **kwargs):
+        """
+        General purpose method to return asset bins by provided fields. Use this if you can't get the result from
+         other methods in this class, as this may return quite a lot the fewer fields you give it to filter by
+        :param project: str name of project we want to search in
+        :param kwargs: dict additional keyword arguments we can use as filters on query
+        :return: list dicts with info of asset bins
+        """
+        query = dict()
+
+        for key, value in kwargs.items():
+            if key not in query:
+                query.update({key: value})
+
+        return [i for i in self.db_client[project][ASSET_BIN].find(query)]
+
+    def get_assets_by_status(self, status, project_name=None, shot=None, asset_name=None, **kwargs):
+        """
+        Creates an asset sub directory for a shot ie. PROP_TABLE_LARGE
+        :param status: int status of asset to search for (ie. ready for review, approved, etc.)
+        :param project_name: str project to make changes to
+        :param shot: str name of shot asset will be a 'child' of
+        :param asset_name: str name of asset which will be updated
+        :param kwargs: any additional attributes to be added to the asset
+        :return: objectID newly created asset entry
+        """
+
+        self.check_db_connection(error_msg="update asset")
+        if project_name:
+            self.verify_project_type(project_name, str)
+            self.check_project_exists(project_name)
+
+        query = dict()
+        for key, value in {'status': status, 'project': project_name, 'shot': shot, 'name': asset_name}.items():
+            if value is not None:
+                query.update({key: value})
+
+        # extend our asset if we provide a dict
+        for key, value in kwargs.items():
+            if key not in query:
+                query[key] = value
+            else:
+                raise ReferenceError("Found additional field in kwargs. Please use update_asset method instead.")
+
+        return self.db_client[project_name][ASSET_BIN].find(query)

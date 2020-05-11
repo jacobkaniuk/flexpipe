@@ -25,9 +25,9 @@ class AssetReaderTest(unittest.TestCase):
         for key, val in kwargs.items():
             entry[key] = val
 
-        if not asset_manager.db_client[project]['published_assets'].find_one(entry):
+        if not asset_manager.db_client[project][PUBLISHED_ASSETS].find_one(entry):
             print "Did not find any entry with given attributes. Adding to collection."
-            asset_manager.db_client[project]['published_assets'].insert_one(entry)
+            asset_manager.db_client[project][PUBLISHED_ASSETS].insert_one(entry)
 
     def print_asset_info(self, asset):
         if isinstance(asset, list):

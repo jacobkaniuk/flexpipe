@@ -20,7 +20,7 @@ def remove_namespaces(item):
 
 def check_reader(instance):
     if instance.asset_reader is None:
-        raise RuntimeError("Could not find asset manager instance. Please use init_manager method to create "
+        raise RuntimeError("Could not find asset manager instance. Please use init_asset_manager method to create "
                            "instance first.")
     return True
 
@@ -136,6 +136,13 @@ class Project(object):
                 return self.asset_reader.get_assets(*args, project=self.__name,
                                                     from_date=from_date, to_date=to_date, **kwargs)
 
+    def get_assets_by_location(self, location, *args, **kwargs):
+        if check_reader(self):
+            if not isinstance(location, str):
+                raise TypeError("Invalid type provided for location. Expected: {} Got: {}".format(str, type(location)))
+
+        return self.asset_reader.get_assets(*args, location=location, project=self.__name, **kwargs)
+
 
 class Shot(object):
     def __init__(self, project, name, start_frame=1, end_frame=50, users=None, fps=24):
@@ -210,7 +217,7 @@ class Shot(object):
     def __eq__(self, other):
         return self.__frame_count == other.frame_count
 
-    def init_manager(self):
+    def init_asset_manager(self):
         self.asset_reader = asset_manager.AssetReader()
 
     def get_shot_assets(self, *args, **kwargs):

@@ -18,12 +18,10 @@ from core_api.assets.scene_asset import SceneAsset
 from core_api.assets.layout_asset import LayoutAsset
 from core_api.assets.image_asset import ImageAsset
 from core_api.assets.texture_asset import TextureAsset
-from core_api.conf import PUBLISHED_ASSETS, ASSET_STATUS
-
+from core_api.conf import PUBLISHED_ASSETS, ASSET_STATUS, DATABASE_PREFIX_ADDRESS
 
 logging.basicConfig()
 
-database_prefix_address = r'flex:\\'  # TODO load this in from a config file somehow
 
 # use these keys to instantiate an asset object based on their unique member names.
 # When extending, make sure inheritance order is set left->right : child->parent
@@ -276,37 +274,43 @@ class AssetReader(object):
         :param representations: bool return results as flexpipe asset objects or as dicts from database results
         :return: list all found assets as dicts. can then be instantiated by feeding into get published asset method
         """
+        if not asset_type:
+            asset_type = {}
+
         if asset_type:
             if issubclass(type(asset_type), BaseAsset):
                 asset_type = asset_type.__name__
 
         query = dict()
         for key, value in {'asset_type': asset_type, 'project': project, 'shot': shot,
-                           'dept': dept, 'location': location, 'status': status}.items():
+                           'department': dept, 'location': location, 'status': status}.items():
             if value:
-                if not isinstance(value, str):
+                if value.__class__ not in [str, int]:
                     raise TypeError("Please provide a valid type to search db. "
-                                    "Expected: {} Got: {}".format(str, type(value)))
+                                    "Expected: {} Got: {}".format([str, int], type(value)))
                 query.update({key: value})
 
         if from_date and to_date:
+            # TODO figure out why isn't this working with gt < val > lt
             # if we're filtering by date, erase query and set it just to our date range
-            query = {'publish_time': {'$gte': from_date, '$lt': to_date}}
+            query = {'publish_time': {'$lt': {"$dateFromString": {"dateString": to_date}},
+                                      '$gte': {"$dateFromString": {"dateString": to_date}}}}
 
         if max_count:
+            col_published_assets = self.db_client[project][PUBLISHED_ASSETS]
             # use this to limit how many assets we're going to get back
             if not isinstance(max_count, int):
                 if not isinstance(max_count, long):
                     if not max_count >= 1:
-                        raise TypeError("Please provide a valid numeric value for result length contraint.")
+                        raise TypeError("Please provide a valid numeric value for result length constraint.")
 
             # return the assets as python object representations
             if representations:
-                results = [i for i in cursor.Cursor(PUBLISHED_ASSETS, filter=query, limit=max_count)]
+                results = [i for i in cursor.Cursor(col_published_assets, filter=query, limit=max_count)]
                 return [create_asset_representation(i) for i in results]
 
             # return just the db cursor results
-            return [i for i in cursor.Cursor(PUBLISHED_ASSETS, filter=query, limit=max_count)]
+            return [i for i in cursor.Cursor(col_published_assets, filter=query, limit=max_count)]
 
         # no limit, return all found items
         if representations:
@@ -315,11 +319,11 @@ class AssetReader(object):
 
         return [i for i in self.db_client[project][PUBLISHED_ASSETS].find(query)]
 
-    def get_assets_by_project(self, asset_type, project, max_count=None):
-        return self.get_assets(asset_type, project, max_count)
+    def get_assets_by_project(self, asset_type, project, **kwargs):
+        return self.get_assets(asset_type, project, **kwargs)
 
-    def get_assets_by_shot(self, asset_type, project, shot, max_count=None):
-        return self.get_assets(asset_type, project, shot, max_count)
+    def get_assets_by_shot(self, asset_type, project, shot, **kwargs):
+        return self.get_assets(asset_type, project, shot, **kwargs)
 
     def get_asset_by_database_path(self, database_path):
         """
@@ -331,9 +335,9 @@ class AssetReader(object):
         # TODO make sure to add check for suffix validating at end, value error thrown now
 
         argument_error_message = "Please provide required arguments: {}{}/{}/{}\n{}\nor\n{}".format(
-            database_prefix_address, 'project', 'shot', 'asset_name', 'version (optional),'
-            'eg: flex://test_project/ENV_SHOPPING_CENTRE/PROP_SHOPPING_CART_A/model/4',
-            ' as list: ["flex://", "test_project", "ENV_SHOPPING_CENTRE", "PROP_SHOPPING_CART_A", "model", "4"]')
+            DATABASE_PREFIX_ADDRESS, 'project', 'shot', 'asset_name', 'version (optional),'
+            'eg: flex://test_project/ENV_SHOPPING_CENTRE/PROP_SHOPPING_CART_A_mdl/4',
+            ' as list: ["flex://", "test_project", "ENV_SHOPPING_CENTRE", "PROP_SHOPPING_CART_A", "mdl", "4"]')
 
         project     = None
         shot        = None
@@ -341,11 +345,11 @@ class AssetReader(object):
         version     = None
 
         if isinstance(database_path, str):
-            if not database_path.startswith(database_prefix_address):
+            if not database_path.startswith(DATABASE_PREFIX_ADDRESS):
                 raise RuntimeWarning("Please make sure you add correct address at start of provided. \nExpected: {} \n"
-                                     "Got: {}\n".format(database_prefix_address, database_path[:len(database_prefix_address)]))
+                                     "Got: {}\n".format(DATABASE_PREFIX_ADDRESS, database_path[:len(DATABASE_PREFIX_ADDRESS)]))
 
-            database_path = database_path.rsplit(database_prefix_address)[-1]
+            database_path = database_path.rsplit(DATABASE_PREFIX_ADDRESS)[-1]
             database_path = database_path.rsplit(os.path.sep)
 
         elif isinstance(database_path, list):
@@ -357,15 +361,12 @@ class AssetReader(object):
             if not len(database_path) == 3:
                 raise RuntimeError(argument_error_message)
 
-        if len(database_path) == 3:
+        if 3 <= len(database_path) <= 4:
             project     = database_path[0]
             shot        = database_path[1]
             asset_name  = database_path[2]
 
-        elif len(database_path) == 4:
-            project     = database_path[0]
-            shot        = database_path[1]
-            asset_name  = database_path[2]
+        if len(database_path) == 4:
             version     = database_path[3]
 
         if not all([project, shot, asset_name]) != '' or None:

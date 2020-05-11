@@ -1,7 +1,7 @@
 import unittest
 from core_api.managers import production_manager
 from core_api import production
-
+from core_api.conf import ASSET_BIN, PUBLISHED_ASSETS
 
 class ProjectManipulationTest(unittest.TestCase):
     def test_db_client(self):
@@ -12,12 +12,11 @@ class ProjectManipulationTest(unittest.TestCase):
     def test_project_addition(self):
         # test if we can add a project to the databsase
         prod_manager = production_manager.ProductionManager('mongodb')
-        new_project = production.Project(
-           'test_this_new_project',
-           '/mnt/VFX/work',
-           max_users=15
-        )
+        new_project = production.Project('test_this_new_project', '/mnt/VFX/work', max_users=15)
+        newer_project = production.Project('new_project', '/mnt/s/stuff/', max_users=50)
+
         print prod_manager.create_project(new_project)
+        print prod_manager.create_project(newer_project)
         self.assertRaises(TypeError, prod_manager.create_project, 'testingin')
         self.assertRaises(TypeError, prod_manager.create_project, 155)
         self.assertRaises(TypeError, prod_manager.create_project, None)
@@ -101,7 +100,7 @@ class ProjectManipulationTest(unittest.TestCase):
         prod_manager.create_asset(new_project, 'F11024', 'PROP_TELEVISION')
         prod_manager.create_asset(new_project, 'F11024', 'PROP_HAIR_DRYER')
         prod_manager.create_asset(new_project, 'F11024', 'PROP_HAMMER', max_weight='2Kg')
-        prod_manager.update_asset('test_this_new_project', 'F11024', 'PROP_TELESCOPE', max_size=39)
+        prod_manager.update_asset('test_this_new_project', 'F11024', 'PROP_TELESCOPE', max_size=8001)
         prod_manager.update_asset('test_this_new_project', 'F11024', 'VHCL_GO_KART', validators=['validate.py', 'validateme.py'])
         prod_manager.update_asset(project_name='test_this_new_project', asset_id='5e4b7fbbe82acf15b012bf5d', max_size='22GB')
         prod_manager.update_asset(asset_id='5e4b88ecc7a6ce3288e184cc', food='GOOOD')
@@ -112,6 +111,18 @@ class ProjectManipulationTest(unittest.TestCase):
         # production_manager.remove_asset('test_this_new_project', 'F11024', 'PROP_TELESCOPE')
         prod_manager.remove_asset(asset_id='5e4e93bbc7a6ce3288e18abb')
 
+    def test_get_assets_by_status(self):
+        prod_manager = production_manager.ProductionManager('mongodb')
+        stuff = prod_manager.get_assets_by_status(1, project_name='test_this_new_project')
+        for item in stuff:
+            print item
+
+    def test_get_assets_by_general(self):
+        prod_manager = production_manager.ProductionManager('mongodb')
+        print prod_manager.get_assets_by(project='test_this_new_project', shot='F11024')
+        print prod_manager.get_assets_by(project='test_this_new_project', name='PROP_SOFA')
+        print prod_manager.get_assets_by(project='test_this_new_project', size='40GB')
+
     def test_add_user(self):
         pass
 
@@ -119,7 +130,7 @@ class ProjectManipulationTest(unittest.TestCase):
         from bson import ObjectId
         prod_manager = production_manager.ProductionManager('mongodb')
         id = ObjectId('5e4e93bbc7a6ce4178e18abb')
-        result = prod_manager.db_client['test_thhis_new_project']['assets'].find_one({'_id': id})
+        result = prod_manager.db_client['test_this_new_project'][ASSET_BIN].find_one({'_id': id})
         print result
 
     def test_get_project_assets(self):
@@ -129,9 +140,52 @@ class ProjectManipulationTest(unittest.TestCase):
             print i['asset_type'], i
         for i in proj.get_project_assets('BaseAsset'):
             print i['asset_type'], i
+        for i in proj.get_project_assets(asset_type='BaseAsset', max_count=2):
+            print "limited: ", i['asset_type'], i
+        for i in proj.get_project_assets(asset_type='ImageAsset', max_count=6, representations=True):
+            i.get_asset_info()
 
     def test_get_shot_assets(self):
         shot = production.Shot('test_this_new_project', 'PLAYGROUND_ASSETS')
-        shot.init_manager()
+        shot.init_asset_manager()
         for i in shot.get_shot_assets(asset_type='ImageAsset'):
             print i
+
+    def test_get_assets_by_date(self):
+        import datetime
+        proj = production.Project('test_this_new_project')
+        shot = production.Shot('test_this_new_project', 'PLAYGROUND_ASSETS')
+
+        proj.init_asset_manager()
+        shot.init_asset_manager()
+
+        _from = datetime.datetime(2020, 1, 1, 1, 0, 0)
+        _to   = datetime.datetime(2020, 12, 30, 11, 59, 59)
+
+        for i in proj.get_assets_by_date(_from, _to):
+            print "By dates: ",  i
+
+        for i in shot.get_assets_by_date(_from, _to):
+            print "By dates: ", i
+
+
+    def test_get_assets_by_dept(self):
+        proj = production.Project('test_this_new_project')
+        shot = production.Shot('test_this_new_project', 'PLAYGROUND_ASSETS')
+
+        proj.init_asset_manager()
+        shot.init_asset_manager()
+
+        for i in proj.get_assets_by_dept('MDL'):
+            print "Dept asset: ", i
+
+        for i in shot.get_assets_by_dept('MDL'):
+            print "Dept asset: ", i
+
+
+    def test_get_assets_by_location(self):
+        proj = production.Project('test_this_new_project')
+        proj.init_asset_manager()
+        for i in proj.get_assets_by_location('toronto', representations=True):
+            print i.get_asset_info()
+
