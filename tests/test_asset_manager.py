@@ -7,6 +7,8 @@ from core_api.assets.base_asset import BaseAsset
 from core_api.production import remove_namespaces
 from collections import OrderedDict
 
+from core_api.conf import PUBLISHED_ASSETS
+
 
 class AssetReaderTest(unittest.TestCase):
     def test_write_dummy_data(self, name='TEST_ASSET_A', created_by=22, publish_time='2020-6-3-22:21:25',

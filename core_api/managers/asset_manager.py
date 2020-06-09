@@ -3,8 +3,16 @@ import logging
 from logging import Logger
 import warnings
 import os
+import datetime
+from collections import Iterable
+from collections import Counter
 
 from pymongo import MongoClient
+from pymongo import bulk
+from pymongo import InsertOne
+from pymongo import ReplaceOne
+from pymongo import UpdateOne, UpdateMany
+from pymongo import DeleteOne, DeleteMany
 from pymongo import mongo_client
 from pymongo import collection
 from pymongo import command_cursor
@@ -12,6 +20,7 @@ from pymongo import cursor
 from bson import ObjectId
 from pymongo import errors
 
+from filesystem_manager import FileSystem
 
 from core_api.assets.base_asset import BaseAsset
 from core_api.assets.scene_asset import SceneAsset
@@ -361,10 +370,9 @@ class AssetReader(object):
             if not len(database_path) == 3:
                 raise RuntimeError(argument_error_message)
 
-        if 3 <= len(database_path) <= 4:
-            project     = database_path[0]
-            shot        = database_path[1]
-            asset_name  = database_path[2]
+        project     = database_path[0]
+        shot        = database_path[1]
+        asset_name  = database_path[2]
 
         if len(database_path) == 4:
             version     = database_path[3]
@@ -381,12 +389,130 @@ class AssetReader(object):
                                         asset_name=split_asset_name, version=version)
 
 
+class AssetOperations(object):
+    class Insert:
+        def __init__(self):
+            pass
+
+    class Update:
+        def __init__(self):
+            pass
+
+    class Delete:
+        def __init__(self):
+            pass
+
+    class Archive:
+        def __init__(self):
+            pass
+
+    @staticmethod
+    def unpack_asset_info(asset, **kwargs):
+        if not isinstance(asset, BaseAsset):
+            raise TypeError("Expected instance of {}. Got: {}.\n".format(BaseAsset, type(asset)))
+
+        entry = {
+            'name':         asset.get_asset_name(),
+            'created_by':   asset.get_asset_published_user(),
+            'publish_time': datetime.datetime.utcnow(),
+            'project':      asset.get_asset_project(),
+            'shot':         asset.get_asset_shot(),
+            'version':      asset.get_asset_version(),
+            'asset_type':   asset.get_asset_type(),
+        }
+
+        for key, val in kwargs.items():
+            entry[key] = val
+
+        return entry
+
+    @staticmethod
+    def add_asset_entry(asset, **kwargs):
+        """
+        Add a new asset entry to project in database
+        :param asset: BaseAsset asset we want to add
+        """
+        return InsertOne(AssetOperations.unpack_asset_info(asset, **kwargs))
+
+    @staticmethod
+    def update_asset_entry(asset, **kwargs):
+        """
+        Update an asset entry in our database
+        :param asset: BaseAsset asset we want to update
+        """
+        return UpdateOne(asset, AssetOperations.unpack_asset_info(asset, **kwargs))
+
+    @staticmethod
+    def delete_asset_entry(asset, archive=False, **kwargs):
+        """
+        Delete an asset entry in our database
+        :param asset: BaseAsset asset we want to delete from database
+        :param archive: bool soft deletion of asset (move to archive database/location)
+        """
+        return DeleteOne(AssetOperations.unpack_asset_info(asset, **kwargs))
+
+    @staticmethod
+    def archive_asset_entry(asset, **kwargs):
+        UpdateOne(asset, AssetOperations.unpack_asset_info(asset, **kwargs))
+        DeleteOne(AssetOperations.unpack_asset_info(asset, **kwargs))
+
+
 class AssetWriter(object):
     def __init__(self):
         super(AssetWriter, self).__init__()
+        self.db_client = MongoClient('localhost')  # TODO pass db server we want to connect to
+
+    def exec_asset_operation(self, assets, asset_operation):
+        project_assets = dict()
+        filesystem_ops = list()
+
+        # function pointers for different database operations
+        db_ops = {
+            AssetOperations.Insert:  AssetOperations.add_asset_entry,
+            AssetOperations.Update:  AssetOperations.update_asset_entry,
+            AssetOperations.Delete:  AssetOperations.delete_asset_entry,
+            AssetOperations.Archive: AssetOperations.archive_asset_entry
+        }
+
+        # function pointers to different filesystem operations
+        fs_ops = {
+            AssetOperations.Insert: FileSystem.copy_file,
+            AssetOperations.Update: FileSystem.copy_file,
+            AssetOperations.Delete: FileSystem.delete_file,
+            AssetOperations.Archive: FileSystem.delete_file
+        }
+
+        if not isinstance(assets, Iterable):
+            if not isinstance(assets, BaseAsset):
+                raise RuntimeError("Could not add assets to database. "
+                                   "Please make sure you are passing an instance of BaseAsset.\n")
+            assets = [assets]
+
+        for asset in assets:
+            # build a dict based on different projects
+            if asset.get_asset_project() not in project_assets:
+                project_assets[asset.get_asset_project()] = list()
+
+            # add a bulk operation object to our projects asset list
+            project_assets[asset.get_asset_project()].append({asset: db_ops[asset_operation](asset)})
+
+            # TODO split this out into a publishing module
+            # add a filesystem bulk operation to our list
+            filesystem_ops.append(str(fs_ops[asset_operation].__name__) + '({})'.format(asset.generate_os_paths()))
+
+        for project, bulk_ops in project_assets.items():
+            self.db_client[project][PUBLISHED_ASSETS].bulk_write([bulk_ops])
+
+        for item in filesystem_ops:
+            exec item
 
 
 def create_asset_representation(asset_entry):
+    """
+    Create a flexpipe asset object from the databse results (dicts)
+    :param asset_entry: dict database result object to create a flexpipe asset object from
+    :return: BaseAsset flexpipe asset object
+    """
     from inspect import getargspec
 
     if not isinstance(asset_entry, dict):

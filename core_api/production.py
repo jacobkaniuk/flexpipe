@@ -4,6 +4,7 @@ import datetime
 
 from managers import asset_manager
 from conf import PUBLISHED_ASSETS, SETTINGS, SHOTS, DEPARTMENTS
+from managers import asset_manager
 
 
 def remove_namespaces(item):
@@ -257,3 +258,39 @@ class Shot(object):
             elif from_date and to_date:
                 return self.asset_reader.get_assets(*args, shot=self.__name, project=self.project,
                                                     from_date=from_date, to_date=to_date, **kwargs)
+
+
+class Asset(object):
+    def __init__(self, id, name, shot, siblings=None, parents=None):
+        self.asset_reader = asset_manager.AssetReader()
+        self.id = id
+        self.name = name
+        self.shot = shot
+        self.project = self.shot.project
+        self.siblings = siblings
+        self.parents = parents
+
+    def get_asset(self, asset_type, **kwargs):
+        return self.asset_reader.get_published_asset(
+            project=self.project, shot=self.shot, asset_type=asset_type, asset_name=self.name, **kwargs)
+
+    def get_model(self, **kwargs):
+        return self.get_asset('ModelAsset', **kwargs)
+
+    def get_anim(self, **kwargs):
+        return self.get_asset('AnimAsset', **kwargs)
+
+    def get_texture(self, **kwargs):
+        return self.get_asset('TextureAsset', **kwargs)
+
+    def get_lookdev(self, **kwargs):
+        return self.get_asset('LookdevAsset', **kwargs)
+
+    def get_rig(self, **kwargs):
+        return self.get_asset('RigAsset', **kwargs)
+
+    def get_fx(self, **kwargs):
+        return self.get_asset('FXAsset', **kwargs)
+
+    def get_lighting(self, **kwargs):
+        return self.get_asset('LightingAsset', **kwargs)
