@@ -1,11 +1,12 @@
 import unittest
-from core_api.managers.asset_manager import AssetReader
+from core_api.managers.asset_manager import AssetReader, AssetWriter, AssetOperations, create_asset_representation
 from core_api.assets.image_asset import ImageAsset
 from core_api.assets.texture_asset import TextureAsset
 from core_api.assets.layout_asset import LayoutAsset
 from core_api.assets.base_asset import BaseAsset
 from core_api.production import remove_namespaces
 from collections import OrderedDict
+from core_api.utils import unpack_csv
 
 from core_api.conf import PUBLISHED_ASSETS
 
@@ -155,8 +156,28 @@ class AssetReaderTest(unittest.TestCase):
 
 
 class AssetWriterTest(unittest.TestCase):
+    writer = AssetWriter()
+
+    def test_write_dummy_data(self, name='TEST_ASSET_A', created_by=22, publish_time='2020-6-3-22:21:25',
+                              project='test_this_new_project', shot='TEST_SCENE', version=1,
+                              asset_type='BaseAsset', **kwargs):
+
+        asset1 = BaseAsset(name='new_test_asset'.upper(), project='test_this_new_project', shot='NEW_TESTING')
+        asset2 = BaseAsset(name='thisnew'.upper(), project='test_this_new_project', shot='NEW_TESTING')
+        asset3 = BaseAsset(name='sdfoi234509'.upper(), project='test_this_new_project', shot='NEW_TESTING')
+        asset4 = BaseAsset(name='absdfsdf'.upper(), project='test_this_new_project', shot='NEW_TESTING')
+        asset5 = BaseAsset(name='testingabc'.upper(), project='test_this_new_project', shot='NEW_TESTING')
+
+        return [asset1, asset2, asset3, asset4, asset5]
+
     def test_add_new_asset(self):
-        pass
+        # print AssetWriter.exec_asset_operation(self.writer, self.test_write_dummy_data(version=3, asset_type='AnimAsset'),
+        #                                  AssetOperations.Insert)
+
+        csv_assets = [create_asset_representation(i)
+                      for i in unpack_csv(r'S:\dev\python\2.7\flexpipe\res\assets_to_publish.csv', 'r')]
+
+        AssetWriter.exec_asset_operation(self.writer, csv_assets, AssetOperations.Insert)
 
     def test_update_existing_asset(self):
         pass

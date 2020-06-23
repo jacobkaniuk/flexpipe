@@ -5,7 +5,7 @@ from core_api.utils import generate_relative_path
 
 class BaseAsset(object):
     def __init__(self, name=None, uid=None, asset_type=None, upid=None,
-                 publish_time=None, project=None, shot=None, version=None, department=None, location=None):
+                 publish_time=None, project=None, shot=None, version=1, department=None, location=None):
         self.__name = name
         self.__uid = uid
         self.__asset_type = asset_type
@@ -59,7 +59,7 @@ class BaseAsset(object):
         return self.__user_publish_id
 
     def get_asset_type(self):
-        return type(self)
+        return type(self).__name__
 
     def get_asset_name(self):
         return self.__name
@@ -74,6 +74,9 @@ class BaseAsset(object):
         return self.__asset_relative_db_path
 
     def get_asset_type_suffix(self):
+        if self.__class__ == BaseAsset:
+            return ''
+
         for key, value in ASSET_TYPE_SUFFIXES.items():
             if str(self.__asset_type) == value:
                 return key

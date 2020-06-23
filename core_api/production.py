@@ -5,18 +5,7 @@ import datetime
 from managers import asset_manager
 from conf import PUBLISHED_ASSETS, SETTINGS, SHOTS, DEPARTMENTS
 from managers import asset_manager
-
-
-def remove_namespaces(item):
-    if not isinstance(item, dict):
-        raise TypeError("Could not remove namespaces from item(s). Expecting type: {} Got: {}".format(
-            dict, type(item)))
-
-    no_namespace_dict = dict()
-    for key, value in item.items():
-        key = str(key).rsplit('__')[-1]
-        no_namespace_dict[key] = value
-    return no_namespace_dict
+from utils import remove_namespaces
 
 
 def check_reader(instance):
@@ -126,7 +115,7 @@ class Project(object):
         # TODO assert dates are provided in ISO 8601 before we do a check on the db
 
         if check_reader(self):
-            now = datetime.datetime.now().isoformat()
+            now = datetime.datetime.utcnow().isoformat()
             day_begin = now.rsplit(':')[0] + ':00:00.000000'
 
             if not from_date and not to_date:

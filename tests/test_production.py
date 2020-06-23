@@ -159,8 +159,10 @@ class ProjectManipulationTest(unittest.TestCase):
         proj.init_asset_manager()
         shot.init_asset_manager()
 
-        _from = datetime.datetime(2020, 1, 1, 1, 0, 0)
-        _to   = datetime.datetime(2020, 12, 30, 11, 59, 59)
+        _from = datetime.datetime(2020, 1, 1).isoformat()
+        _to   = datetime.datetime(2020, 12, 30).isoformat()
+        print 'from: ', _from
+        print 'to: ', _to
 
         for i in proj.get_assets_by_date(_from, _to):
             print "By dates: ",  i

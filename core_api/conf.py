@@ -22,15 +22,15 @@ def get_database_prefix_address():
 
 # use these to determine which asset we need to instantiate based on their suffix
 ASSET_TYPE_SUFFIXES = {
-    'mdl': 'ModelAsset',
-    'tex': 'TextureAsset',
-    'img': 'ImageAsset',
-    'scn': 'SceneAsset',
-    'rig': 'RigAsset',
-    'fx': 'FXAsset',
-    'lgt': 'LightingAsset',
+    'mdl':  'ModelAsset',
+    'tex':  'TextureAsset',
+    'img':  'ImageAsset',
+    'scn':  'SceneAsset',
+    'rig':  'RigAsset',
+    'fx':   'FXAsset',
+    'lgt':  'LightingAsset',
     'anim': 'AnimAsset',
-    'lay': 'LayoutAsset'
+    'lay':  'LayoutAsset'
 }
 
 

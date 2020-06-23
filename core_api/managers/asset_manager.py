@@ -6,6 +6,8 @@ import os
 import datetime
 from collections import Iterable
 from collections import Counter
+from core_api.utils import remove_namespaces
+
 
 from pymongo import MongoClient
 from pymongo import bulk
@@ -23,6 +25,7 @@ from pymongo import errors
 from filesystem_manager import FileSystem
 
 from core_api.assets.base_asset import BaseAsset
+from core_api.assets.model_asset import ModelAsset
 from core_api.assets.scene_asset import SceneAsset
 from core_api.assets.layout_asset import LayoutAsset
 from core_api.assets.image_asset import ImageAsset
@@ -39,12 +42,13 @@ ASSET_CLASS_ATTRS = OrderedDict({
     'uv_method': TextureAsset,
     'colorspace': ImageAsset,
     'dcc_type': SceneAsset,
-    'windows_path': BaseAsset,
+    'polycount': ModelAsset,
+    'asset_relative_db_path': BaseAsset,
 })
 
 # use these to determine which asset we need to instantiate based on their suffix
 ASSET_TYPE_SUFFIXES = {
-    # 'model': ModelAsset,
+    'mdl': ModelAsset,
     'tex': TextureAsset,
     'img': ImageAsset,
     'scn': SceneAsset,
@@ -422,6 +426,7 @@ class AssetOperations(object):
         }
 
         for key, val in kwargs.items():
+            print "key: ", key, "val: ", val
             entry[key] = val
 
         return entry
@@ -432,7 +437,8 @@ class AssetOperations(object):
         Add a new asset entry to project in database
         :param asset: BaseAsset asset we want to add
         """
-        return InsertOne(AssetOperations.unpack_asset_info(asset, **kwargs))
+        return UpdateOne(AssetOperations.unpack_asset_info(asset, **kwargs),
+                         {"$set": remove_namespaces(asset.__dict__)}, upsert=True)
 
     @staticmethod
     def update_asset_entry(asset, **kwargs):
@@ -440,6 +446,7 @@ class AssetOperations(object):
         Update an asset entry in our database
         :param asset: BaseAsset asset we want to update
         """
+        from pymongo.bulk import BulkUpsertOperation
         return UpdateOne(asset, AssetOperations.unpack_asset_info(asset, **kwargs))
 
     @staticmethod
@@ -462,7 +469,9 @@ class AssetWriter(object):
         super(AssetWriter, self).__init__()
         self.db_client = MongoClient('localhost')  # TODO pass db server we want to connect to
 
-    def exec_asset_operation(self, assets, asset_operation):
+    @staticmethod
+    def exec_asset_operation(writer, assets, asset_operation):
+
         project_assets = dict()
         filesystem_ops = list()
 
@@ -494,17 +503,22 @@ class AssetWriter(object):
                 project_assets[asset.get_asset_project()] = list()
 
             # add a bulk operation object to our projects asset list
-            project_assets[asset.get_asset_project()].append({asset: db_ops[asset_operation](asset)})
+            project_assets[asset.get_asset_project()].append(db_ops[asset_operation](asset))
 
             # TODO split this out into a publishing module
             # add a filesystem bulk operation to our list
             filesystem_ops.append(str(fs_ops[asset_operation].__name__) + '({})'.format(asset.generate_os_paths()))
 
-        for project, bulk_ops in project_assets.items():
-            self.db_client[project][PUBLISHED_ASSETS].bulk_write([bulk_ops])
+        # for project, bulk_ops in project_assets.iteritems():
+        #     writer.db_client[project][PUBLISHED_ASSETS].
+
+        for project, bulk_ops in project_assets.iteritems():
+            print project
+            print "bulk ioops: ", bulk_ops
+            writer.db_client[project][PUBLISHED_ASSETS].bulk_write(bulk_ops)
 
         for item in filesystem_ops:
-            exec item
+            pass ; #exec item
 
 
 def create_asset_representation(asset_entry):
@@ -525,16 +539,16 @@ def create_asset_representation(asset_entry):
     # use this dict to pass in the values for our BaseAsset class
     base_class_dict = OrderedDict(
         name=asset_entry['name'],
-        uid=asset_entry['_id'],
+        uid=asset_entry.get('_id', None),
         upid=asset_entry['created_by'],
         asset_type=asset_entry['asset_type'],
-        publish_time=asset_entry['publish_time'],
+        publish_time=asset_entry.get('publish_time', None),
         project=asset_entry['project'],
         shot=asset_entry['shot'],
         version=asset_entry['version']
     )
 
-    # lets figure out which class we should instance if we a specific field in the asset entry
+    # figure out which class we should instantiate if we a specific field in the asset entry
     asset_class = None
     for key in asset_entry:
         if key in ASSET_CLASS_ATTRS:

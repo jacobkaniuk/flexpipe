@@ -1,0 +1,20 @@
+project,shot,name,created_by,department,location,asset_type,version,colorspace,polycount,dcc_type
+test_this_new_project,ENV_PLAYGROUND,PROP_SWINGSET_A,21,ASSETS,TORONTO,ModelAsset,1,NULL,8000,NULL
+test_this_new_project,ENV_PLAYGROUND,PROP_SWINGSET_B,21,ASSETS,TORONTO,ModelAsset,1,NULL,8001,NULL
+test_this_new_project,ENV_PLAYGROUND,PROP_SANDBOX,21,ASSETS,TORONTO,ModelAsset,1,NULL,8002,NULL
+test_this_new_project,ENV_PLAYGROUND,PROP_SLIDE_A,21,ASSETS,TORONTO,ModelAsset,1,NULL,8003,NULL
+test_this_new_project,ENV_PLAYGROUND,PROP_TEETER,21,ASSETS,TORONTO,ModelAsset,1,NULL,8004,NULL
+test_this_new_project,FF1000,SLAPCOMP,21,COMP,VANCOUVER,ImageAsset,1,sRGB,NULL,NULL
+test_this_new_project,FF1000,SLAPCOMP,21,COMP,VANCOUVER,ImageAsset,1,sRGB,NULL,NULL
+test_this_new_project,FF1000,SLAPCOMP,21,COMP,VANCOUVER,ImageAsset,1,sRGB,NULL,NULL
+test_this_new_project,FF1000,SLAPCOMP,21,COMP,VANCOUVER,ImageAsset,1,sRGB,NULL,NULL
+test_this_new_project,FF1000,ROTO,21,COMP,VANCOUVER,ImageAsset,1,sRGB,NULL,NULL
+test_this_new_project,FF1000,ROTO,21,COMP,VANCOUVER,ImageAsset,1,sRGB,NULL,NULL
+test_this_new_project,FF1000,ROTO,21,COMP,VANCOUVER,ImageAsset,1,sRGB,NULL,NULL
+test_this_new_project,ST2050,MATCHMOVE,24,TRK,LOS ANGELES,SceneAsset,1,NULL,NULL,Maya
+test_this_new_project,ST2051,MATCHMOVE,24,TRK,LOS ANGELES,SceneAsset,1,NULL,NULL,Maya
+test_this_new_project,ST2052,MATCHMOVE,24,TRK,LOS ANGELES,SceneAsset,1,NULL,NULL,Maya
+test_this_new_project,ST2053,MATCHMOVE,24,TRK,LOS ANGELES,SceneAsset,1,NULL,NULL,Maya
+test_this_new_project,ST2054,MATCHMOVE,24,TRK,LOS ANGELES,SceneAsset,1,NULL,NULL,Maya
+test_this_new_project,ST2055,MATCHMOVE,24,TRK,LOS ANGELES,SceneAsset,1,NULL,NULL,Maya
+test_this_new_project,ST2056,MATCHMOVE,24,TRK,LOS ANGELES,SceneAsset,1,NULL,NULL,Maya
