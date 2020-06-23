@@ -115,12 +115,13 @@ class Project(object):
         # TODO assert dates are provided in ISO 8601 before we do a check on the db
 
         if check_reader(self):
-            now = datetime.datetime.utcnow().isoformat()
-            day_begin = now.rsplit(':')[0] + ':00:00.000000'
+            now = datetime.datetime.utcnow()
+            day_end   = datetime.datetime(now.year, now.month, now.day, 23, 59, 59)
+            day_begin = datetime.datetime(now.year, now.month, now.day)
 
             if not from_date and not to_date:
                 return self.asset_reader.get_assets(*args, project=self.__name,
-                                                    from_date=day_begin, to_date=now, **kwargs)
+                                                    from_date=day_begin, to_date=day_end, **kwargs)
 
             elif from_date and to_date:
                 return self.asset_reader.get_assets(*args, project=self.__name,
@@ -216,7 +217,7 @@ class Shot(object):
 
     def get_assets_by_dept(self, dept, *args, **kwargs):
         """
-        Get all the projects assets by department
+        Get all the shots assets by department
         :param dept: str department we want to search
         :return:
         """
@@ -230,22 +231,23 @@ class Shot(object):
 
     def get_assets_by_date(self, from_date=None, to_date=None, *args, **kwargs):
         """
-        Get all projects assets using a date/time range. If no date range is provided through args,
+        Get all shot assets using a date/time range. If no date range is provided through args,
         we return all assets published from beginning of the day
         :param from_date: datetime/str start date of range
         :param to_date: datetime/str end date of range
         :return:
         """
-        if check_reader(self):
-            now = datetime.datetime.now().isoformat()
-            day_begin = now.rsplit(':')[0] + ':00:00.000000'
 
+        if check_reader(self):
+            now = datetime.datetime.utcnow()
+            day_end = datetime.datetime(now.year, now.month, now.day, 23, 59, 59)
+            day_begin = datetime.datetime(now.year, now.month, now.day)
             if not from_date and not to_date:
-                return self.asset_reader.get_assets(*args, shot=self.__name, project=self.project,
-                                                    from_date=day_begin, to_date=now, **kwargs)
+                return self.asset_reader.get_assets(*args, project=self.__project, shot=self.__name,
+                                                    from_date=day_begin, to_date=day_end, **kwargs)
 
             elif from_date and to_date:
-                return self.asset_reader.get_assets(*args, shot=self.__name, project=self.project,
+                return self.asset_reader.get_assets(*args, project=self.__project, shot=self.__name,
                                                     from_date=from_date, to_date=to_date, **kwargs)
 
 

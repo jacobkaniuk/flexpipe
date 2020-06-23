@@ -304,10 +304,7 @@ class AssetReader(object):
                 query.update({key: value})
 
         if from_date and to_date:
-            # TODO figure out why isn't this working with gt < val > lt
-            # if we're filtering by date, erase query and set it just to our date range
-            query = {'publish_time': {'$lt': {"$dateFromString": {"dateString": to_date}},
-                                      '$gte': {"$dateFromString": {"dateString": to_date}}}}
+            query.update({'publish_time': {'$gte': from_date, '$lt': to_date}})
 
         if max_count:
             col_published_assets = self.db_client[project][PUBLISHED_ASSETS]

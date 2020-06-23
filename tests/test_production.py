@@ -154,21 +154,24 @@ class ProjectManipulationTest(unittest.TestCase):
     def test_get_assets_by_date(self):
         import datetime
         proj = production.Project('test_this_new_project')
-        shot = production.Shot('test_this_new_project', 'PLAYGROUND_ASSETS')
+        shot = production.Shot('test_this_new_project', 'ENV_PLAYGROUND')
 
         proj.init_asset_manager()
         shot.init_asset_manager()
 
-        _from = datetime.datetime(2020, 1, 1).isoformat()
-        _to   = datetime.datetime(2020, 12, 30).isoformat()
+        _from = datetime.datetime(2020, 6, 10)
+        _to   = datetime.datetime(2020, 12, 30)
         print 'from: ', _from
         print 'to: ', _to
 
         for i in proj.get_assets_by_date(_from, _to):
             print "By dates: ",  i
 
-        for i in shot.get_assets_by_date(_from, _to):
-            print "By dates: ", i
+        for i in proj.get_assets_by_date():
+            print "By today: ", i
+
+        for i in shot.get_assets_by_date(datetime.datetime(2020, 1, 1), datetime.datetime(2021, 1, 1)):
+            print "By shot: ", i
 
 
     def test_get_assets_by_dept(self):
