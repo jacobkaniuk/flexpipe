@@ -291,14 +291,17 @@ class AssetReader(object):
             asset_type = {}
 
         if asset_type:
-            if issubclass(type(asset_type), BaseAsset):
+            if issubclass(asset_type, BaseAsset):
                 asset_type = asset_type.__name__
+
+        if project not in self.db_client.list_database_names():
+            raise errors.CollectionInvalid("Could not find specified project in database: {}\n".format(project))
 
         query = dict()
         for key, value in {'asset_type': asset_type, 'project': project, 'shot': shot,
                            'department': dept, 'location': location, 'status': status}.items():
             if value:
-                if value.__class__ not in [str, int]:
+                if value.__class__ not in [str, int, unicode]:
                     raise TypeError("Please provide a valid type to search db. "
                                     "Expected: {} Got: {}".format([str, int], type(value)))
                 query.update({key: value})
@@ -423,7 +426,6 @@ class AssetOperations(object):
         }
 
         for key, val in kwargs.items():
-            print "key: ", key, "val: ", val
             entry[key] = val
 
         return entry
@@ -553,8 +555,11 @@ def create_asset_representation(asset_entry):
             break
 
     if asset_class is None:
-        raise KeyError("Could not find asset type to instance from support classes. Please make sure "
-                       "you are passing in the correct data. Aborting...\n")
+        return None
+
+    # if asset_class is None:
+    #     raise KeyError("Could not find asset type to instance from support classes. Please make sure "
+    #                    "you are passing in the correct data. Aborting...\n")
 
     class_dict = OrderedDict()
     for arg in asset_entry:

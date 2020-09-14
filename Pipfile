@@ -29,6 +29,7 @@ PySide = "==1.2.4"
 qt = "*"
 pymongo = "*"
 flask = "*"
+qtpy = "*"
 
 [requires]
 python_version = "2.7"
