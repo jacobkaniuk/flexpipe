@@ -71,10 +71,9 @@ bad_assets = asset_reader.get_assets(AnimAsset, project="arch_viz", location="Va
 rolled_back = [bad_asset.asset_handler.roll_back(1) for bad_asset in bad_assets]
 ```
 
+>**Asset types and usage**
 
-
-
-Model Types|ModelAsset|ImageAsset|TextureAsset|AnimAsset|LightingAsset|RigAsset|SceneAsset|FXAsset|
+|Examples|ModelAsset|ImageAsset|TextureAsset|AnimAsset|LightingAsset|RigAsset|SceneAsset|FXAsset|
 |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 **Usage Examples**| Polygonal or NURB data displayed as 3D objects in a scene|Reference images, screengrabs, plate, luts|Textures used in model asset materials/shaders or environmnets|Scene data for animated rig assets |Light rigs used in layout files to light the scene for rendering  |Rigged model assets used by animators to create animations |Scenes containing other asset types which get all| Various types of simulation data (hair and fur, destruction, pyro, fluid)
 |**File types**|**.fbx, .abc, .obj**|**.png, .jpg, .dpx, .exr**|**.tga, .exr, .tex**|**.ma, .blend, .max**|**.ma, .hda, .max, .blend**|**.ma, .blend, .max**|**.ma, .blend, .max**|**.hip, .ma, .blend, .max**
