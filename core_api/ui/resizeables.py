@@ -31,4 +31,4 @@ class ResizeableTableWidget(QtWidgets.QTableWidget):
             if use_max:
                 self.setColumnWidth(row, max(column_data[col].values()))
             if use_mode:
-                max(set(column_data[col]), key=column_data[col].count)
+                self.setColumnWidth(max(set(column_data[col]), key=column_data[col].count))
